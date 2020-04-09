@@ -1,41 +1,69 @@
 version: 2.1
 orbs:
   node: circleci/node@1.1.6
-jobs:
-  build-and-test:
-    executor:
-      name: node/default
-    steps:
-      - checkout
-      - node/with-cache:
-          steps:
-            - run: npm install
-            - run: npm test
+  jobs:
+    build-and-test:
+      executor:
+        name: node/default
+        steps:
+            - checkout
+            - run: 
+                name: Install dependencies
+                command: npm install
+
+            - save_cache:
+                paths:
+                    - node_modules
+                key: v1-dependencies-{{ checksum "package-lock.json" }}
+
+            # - run: mkdir reports
+
+            # Run mocha
+            - run:
+                name: Run tests
+                command: npm test
+                when: always
+
             # Run coverage
             - run:
-              name: Run coverage
-              command: npm run cover
-              when: always
+                name: Run coverage
+                command: npm run cover
+                when: always
+
             # Run coverage report for Code Climate
+
             - run:
-              name: Setup Code Climate test-reporter
-              command: |
-                  # download test reporter as a static binary
-                  curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
-                  chmod +x ./cc-test-reporter
-                  ./cc-test-reporter before-build
-              when: always
+                name: Setup Code Climate test-reporter
+                command: |
+                    # download test reporter as a static binary
+                    curl -L https://codeclimate.com/downloads/test-reporter/test-reporter-latest-linux-amd64 > ./cc-test-reporter
+                    chmod +x ./cc-test-reporter
+                    ./cc-test-reporter before-build
+                when: always
+
             - run:
-              name: Send coverage report to Code Climate
-              command:
-                  # nyc report requires that nyc has already been run,
-                  # which creates the .nyc_output folder containing necessary data
-                  ./cc-test-reporter after-build -t lcov
-              when: always
-          # Upload results
+                name: Send coverage report to Code Climate
+                command:
+                    # nyc report requires that nyc has already been run,
+                    # which creates the .nyc_output folder containing necessary data
+                    # ./node_modules/.bin/nyc report --reporter=text-lcov > coverage/lcov.info
+                    ./cc-test-reporter after-build -t lcov
+                when: always
+
+            # Upload results
+
+            # - store_test_results:
+            #     path: reports
+
+            # - store_artifacts:
+            #     path: ./reports/mocha/test-results.xml
+
+            # - store_artifacts:
+            #     path: ./reports/eslint/eslint.xml
+
             - store_artifacts: # upload test coverage as artifact
-              path: ./coverage/lcov.info
-              prefix: tests
+                path: ./coverage/lcov.info
+                prefix: tests
 workflows:
     build-and-test:
       jobs:
